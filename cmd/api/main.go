@@ -9,16 +9,17 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found, finding environment variables from system")
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: No .env file found")
 	}
 
 	database.Connect()
+	database.Migrate()
+	database.SeedAdmin()
 
 	r := router.SetupRouter()
 
-	log.Println("Server starting on :8080")
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}

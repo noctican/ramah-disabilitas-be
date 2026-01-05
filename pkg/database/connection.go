@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"ramah-disabilitas-be/internal/model"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -28,4 +30,22 @@ func Connect() {
 	}
 
 	log.Println("Database connection established")
+}
+
+func Migrate() {
+	err := DB.AutoMigrate(
+		&model.User{},
+		&model.Friendship{},
+		&model.Subtest{},
+		&model.Material{},
+		&model.Question{},
+		&model.Match{},
+		&model.MatchDetail{},
+		&model.PracticeSession{},
+		&model.QuestionReport{},
+	)
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+	log.Println("Database migration completed")
 }

@@ -28,12 +28,18 @@ type CourseInput struct {
 	Description string        `json:"description"`
 	Thumbnail   string        `json:"thumbnail"`
 	ClassCode   string        `json:"class_code"`
+	Status      string        `json:"status"` // published, draft
 	Modules     []ModuleInput `json:"modules,omitempty"`
 }
 
 func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 	if input.ClassCode == "" {
 		input.ClassCode = generateClassCode()
+	}
+
+	status := "draft"
+	if input.Status != "" {
+		status = input.Status
 	}
 
 	var modules []model.Module
@@ -62,6 +68,7 @@ func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 		Description: input.Description,
 		Thumbnail:   input.Thumbnail,
 		ClassCode:   input.ClassCode,
+		Status:      status,
 		Modules:     modules,
 	}
 
@@ -72,8 +79,8 @@ func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 	return course, nil
 }
 
-func GetCoursesByTeacher(teacherID uint64) ([]model.Course, error) {
-	return repository.GetCoursesByTeacherID(teacherID)
+func GetCoursesByTeacher(teacherID uint64, search string, status string, sort string) ([]model.Course, error) {
+	return repository.GetCoursesByTeacherID(teacherID, search, status, sort)
 }
 
 func UpdateCourse(id uint64, input CourseInput, teacherID uint64) (*model.Course, error) {

@@ -13,6 +13,7 @@ type Course struct {
 	Description string    `gorm:"type:text" json:"description"`
 	Thumbnail   string    `gorm:"type:varchar(255)" json:"thumbnail"`
 	ClassCode   string    `gorm:"uniqueIndex;type:varchar(20)" json:"class_code"`
+	Status      string    `gorm:"type:varchar(20);default:'draft'" json:"status"` // published, draft, archived
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 

@@ -61,6 +61,7 @@ func CreateCourse(c *gin.Context) {
 	title := c.PostForm("title")
 	description := c.PostForm("description")
 	classCode := c.PostForm("class_code")
+	status := c.PostForm("status")
 	modulesStr := c.PostForm("modules") // JSON String
 
 	// 3. Manual Validation
@@ -91,6 +92,7 @@ func CreateCourse(c *gin.Context) {
 		Description: description,
 		Thumbnail:   thumbnailURL,
 		ClassCode:   classCode,
+		Status:      status,
 		Modules:     modules,
 	}
 
@@ -113,7 +115,11 @@ func GetMyCourses(c *gin.Context) {
 		return
 	}
 
-	courses, err := service.GetCoursesByTeacher(userID.(uint64))
+	search := c.Query("q")
+	status := c.Query("status")
+	sort := c.Query("sort")
+
+	courses, err := service.GetCoursesByTeacher(userID.(uint64), search, status, sort)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -183,6 +189,8 @@ func DeleteCourse(c *gin.Context) {
 	if err != nil {
 		if err.Error() == "unauthorized: you do not own this course" {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		} else if strings.Contains(strings.ToLower(err.Error()), "foreign key constraint fails") || strings.Contains(strings.ToLower(err.Error()), "constraint") {
+			c.JSON(http.StatusConflict, gin.H{"error": "Kelas tidak dapat dihapus karena masih digunakan (terdapat siswa/modul di dalamnya)."})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}

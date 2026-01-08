@@ -9,9 +9,25 @@ func CreateCourse(course *model.Course) error {
 	return database.DB.Create(course).Error
 }
 
-func GetCoursesByTeacherID(teacherID uint64) ([]model.Course, error) {
+func GetCoursesByTeacherID(teacherID uint64, search string, status string, sort string) ([]model.Course, error) {
 	var courses []model.Course
-	err := database.DB.Where("teacher_id = ?", teacherID).Find(&courses).Error
+	query := database.DB.Where("teacher_id = ?", teacherID)
+
+	if search != "" {
+		query = query.Where("title LIKE ?", "%"+search+"%")
+	}
+
+	if status != "" && status != "all" {
+		query = query.Where("status = ?", status)
+	}
+
+	if sort == "oldest" {
+		query = query.Order("created_at asc")
+	} else {
+		query = query.Order("created_at desc")
+	}
+
+	err := query.Find(&courses).Error
 	return courses, err
 }
 

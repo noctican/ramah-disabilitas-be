@@ -1,10 +1,16 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"ramah-disabilitas-be/internal/service"
 	"ramah-disabilitas-be/pkg/utils"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,14 +22,76 @@ func CreateCourse(c *gin.Context) {
 		return
 	}
 
-	var input service.CourseInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	// 1. Handle File Upload (Thumbnail)
+	var thumbnailURL string
+	file, err := c.FormFile("thumbnail")
+	if err == nil {
+		// Validasi ekstensi
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "Validasi input gagal.",
+				"errors":  map[string]string{"thumbnail": "Format file harus jpg, jpeg, atau png."},
+			})
+			return
+		}
+
+		uploadDir := "storage/public"
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat direktori storage"})
+			return
+		}
+
+		filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+		savePath := filepath.Join(uploadDir, filename)
+		if err := c.SaveUploadedFile(file, savePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file thumbnail"})
+			return
+		}
+
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		thumbnailURL = fmt.Sprintf("%s://%s/storage/public/%s", scheme, c.Request.Host, filename)
+	}
+
+	// 2. Handle Text Fields
+	title := c.PostForm("title")
+	description := c.PostForm("description")
+	classCode := c.PostForm("class_code")
+	modulesStr := c.PostForm("modules") // JSON String
+
+	// 3. Manual Validation
+	if title == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
 			"message": "Validasi input gagal.",
-			"errors":  utils.FormatValidationError(err),
+			"errors":  map[string]string{"title": "Judul wajib diisi."},
 		})
 		return
+	}
+
+	// 4. Parse Modules JSON
+	var modules []service.ModuleInput
+	if modulesStr != "" {
+		if err := json.Unmarshal([]byte(modulesStr), &modules); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "Validasi input gagal.",
+				"errors":  map[string]string{"modules": "Format JSON modules tidak valid. Pastikan format array JSON benar."},
+			})
+			return
+		}
+	}
+
+	input := service.CourseInput{
+		Title:       title,
+		Description: description,
+		Thumbnail:   thumbnailURL,
+		ClassCode:   classCode,
+		Modules:     modules,
 	}
 
 	course, err := service.CreateCourse(input, userID.(uint64))

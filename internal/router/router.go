@@ -11,6 +11,9 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
 
+	// Serve static files from storage directory
+	r.Static("/storage", "./storage")
+
 	r.GET("/", func(c *gin.Context) {
 		c.String(200, "Halo! Aplikasi Go berhasil jalan di Koyeb.")
 	})
@@ -26,6 +29,7 @@ func SetupRouter() *gin.Engine {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			protected.POST("/upload", handler.UploadFile)
 			protected.GET("/auth/me", handler.GetMe)
 			protected.POST("/auth/logout", handler.Logout)
 

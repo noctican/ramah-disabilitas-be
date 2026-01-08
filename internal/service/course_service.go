@@ -8,16 +8,52 @@ import (
 	"time"
 )
 
+type MaterialInput struct {
+	Title       string             `json:"title" binding:"required"`
+	Type        model.MaterialType `json:"type" binding:"required"`
+	SourceURL   string             `json:"source_url"`
+	RawContent  string             `json:"raw_content"`
+	DurationMin int                `json:"duration_min"`
+	HasCaptions bool               `json:"has_captions"`
+}
+
+type ModuleInput struct {
+	Title     string          `json:"title" binding:"required"`
+	Order     int             `json:"order"`
+	Materials []MaterialInput `json:"materials,omitempty"`
+}
+
 type CourseInput struct {
-	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
-	Thumbnail   string `json:"thumbnail"`
-	ClassCode   string `json:"class_code"`
+	Title       string        `json:"title" binding:"required"`
+	Description string        `json:"description"`
+	Thumbnail   string        `json:"thumbnail"`
+	ClassCode   string        `json:"class_code"`
+	Modules     []ModuleInput `json:"modules,omitempty"`
 }
 
 func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 	if input.ClassCode == "" {
 		input.ClassCode = generateClassCode()
+	}
+
+	var modules []model.Module
+	for _, m := range input.Modules {
+		var materials []model.Material
+		for _, mat := range m.Materials {
+			materials = append(materials, model.Material{
+				Title:       mat.Title,
+				Type:        mat.Type,
+				SourceURL:   mat.SourceURL,
+				RawContent:  mat.RawContent,
+				DurationMin: mat.DurationMin,
+				HasCaptions: mat.HasCaptions,
+			})
+		}
+		modules = append(modules, model.Module{
+			Title:     m.Title,
+			Order:     m.Order,
+			Materials: materials,
+		})
 	}
 
 	course := &model.Course{
@@ -26,6 +62,7 @@ func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 		Description: input.Description,
 		Thumbnail:   input.Thumbnail,
 		ClassCode:   input.ClassCode,
+		Modules:     modules,
 	}
 
 	if err := repository.CreateCourse(course); err != nil {

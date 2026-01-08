@@ -82,11 +82,18 @@ func GetMe(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User detail",
 		"data": gin.H{
-			"id":     user.ID,
-			"name":   user.Name,
-			"email":  user.Email,
-			"role":   user.Role,
-			"avatar": user.Avatar,
+			"id":            user.ID,
+			"name":          user.Name,
+			"email":         user.Email,
+			"role":          user.Role,
+			"avatar":        user.Avatar,
+			"accessibility": user.Accessibility,
 		},
+	})
+}
+
+func Logout(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logout berhasil",
 	})
 }

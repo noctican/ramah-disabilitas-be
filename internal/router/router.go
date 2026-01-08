@@ -27,6 +27,7 @@ func SetupRouter() *gin.Engine {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/auth/me", handler.GetMe)
+			protected.POST("/auth/logout", handler.Logout)
 
 			admin := protected.Group("/admin")
 			admin.Use(middleware.AdminMiddleware())

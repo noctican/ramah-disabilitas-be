@@ -17,6 +17,6 @@ func FindUserByEmail(email string) (*model.User, error) {
 
 func FindUserByID(id uint64) (*model.User, error) {
 	var user model.User
-	err := database.DB.First(&user, id).Error
+	err := database.DB.Preload("Accessibility").First(&user, id).Error
 	return &user, err
 }

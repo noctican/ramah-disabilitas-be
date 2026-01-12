@@ -9,6 +9,7 @@ import (
 )
 
 type MaterialInput struct {
+	ID          uint64             `json:"id"`
 	Title       string             `json:"title" binding:"required"`
 	Type        model.MaterialType `json:"type" binding:"required"`
 	SourceURL   string             `json:"source_url"`
@@ -18,6 +19,7 @@ type MaterialInput struct {
 }
 
 type ModuleInput struct {
+	ID        uint64          `json:"id"`
 	Title     string          `json:"title" binding:"required"`
 	Order     int             `json:"order"`
 	Materials []MaterialInput `json:"materials,omitempty"`
@@ -88,17 +90,27 @@ func GetCourseDetail(id uint64) (*model.Course, error) {
 }
 
 func UpdateCourse(id uint64, input CourseInput, teacherID uint64) (*model.Course, error) {
-	course, err := repository.GetCourseByID(id)
+	existingCourse, err := repository.GetCourseByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	if course.TeacherID != teacherID {
+	if existingCourse.TeacherID != teacherID {
 		return nil, errors.New("unauthorized: you do not own this course")
 	}
 
-	course.Title = input.Title
-	course.Description = input.Description
+	// Prepare the new state
+	course := &model.Course{
+		ID:          id,
+		TeacherID:   teacherID,
+		Title:       input.Title,
+		Description: input.Description,
+		Thumbnail:   existingCourse.Thumbnail, // Default to existing
+		ClassCode:   existingCourse.ClassCode, // Default to existing
+		Status:      existingCourse.Status,    // Default to existing
+		CreatedAt:   existingCourse.CreatedAt,
+	}
+
 	if input.Thumbnail != "" {
 		course.Thumbnail = input.Thumbnail
 	}
@@ -109,11 +121,39 @@ func UpdateCourse(id uint64, input CourseInput, teacherID uint64) (*model.Course
 		course.Status = input.Status
 	}
 
+	// Map Modules from Input
+	var modules []model.Module
+	for _, m := range input.Modules {
+		var materials []model.Material
+		for _, mat := range m.Materials {
+			materials = append(materials, model.Material{
+				ID:          mat.ID,
+				ModuleID:    m.ID, // Will be 0 if new module
+				Title:       mat.Title,
+				Type:        mat.Type,
+				SourceURL:   mat.SourceURL,
+				RawContent:  mat.RawContent,
+				DurationMin: mat.DurationMin,
+				HasCaptions: mat.HasCaptions,
+			})
+		}
+		modules = append(modules, model.Module{
+			ID:        m.ID,
+			CourseID:  id,
+			Title:     m.Title,
+			Order:     m.Order,
+			Materials: materials,
+		})
+	}
+	course.Modules = modules
+
 	if err := repository.UpdateCourse(course); err != nil {
 		return nil, err
 	}
 
-	return course, nil
+	// Return updated course
+	updatedCourse, err := repository.GetCourseByID(id)
+	return updatedCourse, err
 }
 
 func DeleteCourse(id uint64, teacherID uint64) error {
@@ -165,4 +205,115 @@ func JoinCourse(classCode string, studentID uint64) error {
 
 func GetStudentCourses(studentID uint64) ([]model.Course, error) {
 	return repository.GetCoursesByStudentID(studentID)
+}
+
+func DeleteModule(moduleID uint64, teacherID uint64) error {
+	module, err := repository.GetModuleByID(moduleID)
+	if err != nil {
+		return errors.New("modul tidak ditemukan")
+	}
+
+	course, err := repository.GetCourseByID(module.CourseID)
+	if err != nil {
+		return errors.New("kelas tidak ditemukan")
+	}
+
+	if course.TeacherID != teacherID {
+		return errors.New("unauthorized: anda tidak memiliki akses ke modul ini")
+	}
+
+	return repository.DeleteModule(moduleID)
+}
+
+func DeleteMaterial(materialID uint64, teacherID uint64) error {
+	material, err := repository.GetMaterialByID(materialID)
+	if err != nil {
+		return errors.New("materi tidak ditemukan")
+	}
+
+	module, err := repository.GetModuleByID(material.ModuleID)
+	if err != nil {
+		return errors.New("modul tidak ditemukan (data inkonsisten)")
+	}
+
+	course, err := repository.GetCourseByID(module.CourseID)
+	if err != nil {
+		return errors.New("kelas tidak ditemukan (data inkonsisten)")
+	}
+
+	if course.TeacherID != teacherID {
+		return errors.New("unauthorized: anda tidak memiliki akses ke materi ini")
+	}
+
+	return repository.DeleteMaterial(materialID)
+}
+
+func CreateMaterial(moduleID uint64, input MaterialInput, teacherID uint64) (*model.Material, error) {
+	module, err := repository.GetModuleByID(moduleID)
+	if err != nil {
+		return nil, errors.New("modul tidak ditemukan")
+	}
+
+	course, err := repository.GetCourseByID(module.CourseID)
+	if err != nil {
+		return nil, errors.New("kelas tidak ditemukan")
+	}
+
+	if course.TeacherID != teacherID {
+		return nil, errors.New("unauthorized: anda tidak memiliki akses ke modul ini")
+	}
+
+	material := &model.Material{
+		ModuleID:    moduleID,
+		Title:       input.Title,
+		Type:        input.Type,
+		SourceURL:   input.SourceURL,
+		RawContent:  input.RawContent,
+		DurationMin: input.DurationMin,
+		HasCaptions: input.HasCaptions,
+	}
+
+	if err := repository.CreateMaterial(material); err != nil {
+		return nil, err
+	}
+
+	return material, nil
+}
+
+func UpdateMaterial(materialID uint64, input MaterialInput, teacherID uint64) (*model.Material, error) {
+	material, err := repository.GetMaterialByID(materialID)
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan")
+	}
+
+	module, err := repository.GetModuleByID(material.ModuleID)
+	if err != nil {
+		return nil, errors.New("modul tidak ditemukan")
+	}
+
+	course, err := repository.GetCourseByID(module.CourseID)
+	if err != nil {
+		return nil, errors.New("kelas tidak ditemukan")
+	}
+
+	if course.TeacherID != teacherID {
+		return nil, errors.New("unauthorized: anda tidak memiliki akses ke materi ini")
+	}
+
+	material.Title = input.Title
+	material.Type = input.Type
+
+	// Only update source url if not empty (or if we want to allow clearing it, we need logic. Assuming update meant to set new value)
+	if input.SourceURL != "" {
+		material.SourceURL = input.SourceURL
+	}
+	material.RawContent = input.RawContent
+	material.DurationMin = input.DurationMin
+	material.HasCaptions = input.HasCaptions
+
+	if err := repository.UpdateMaterial(material); err != nil {
+		return nil, err
+	}
+
+	return material, nil
 }

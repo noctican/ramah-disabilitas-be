@@ -3,6 +3,8 @@ package repository
 import (
 	"ramah-disabilitas-be/internal/model"
 	"ramah-disabilitas-be/pkg/database"
+
+	"gorm.io/gorm"
 )
 
 func CreateCourse(course *model.Course) error {
@@ -38,7 +40,83 @@ func GetCourseByID(id uint64) (*model.Course, error) {
 }
 
 func UpdateCourse(course *model.Course) error {
-	return database.DB.Save(course).Error
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Get IDs of ALL modules currently in DB for this course (to detect deletions)
+		var oldModuleIDs []uint64
+		if err := tx.Model(&model.Module{}).Where("course_id = ?", course.ID).Pluck("id", &oldModuleIDs).Error; err != nil {
+			return err
+		}
+
+		// Map of old module IDs -> its old material IDs (to detect material deletions)
+		oldMaterialsMap := make(map[uint64][]uint64)
+		for _, mid := range oldModuleIDs {
+			var oldMatIDs []uint64
+			tx.Model(&model.Material{}).Where("module_id = ?", mid).Pluck("id", &oldMatIDs)
+			oldMaterialsMap[mid] = oldMatIDs
+		}
+
+		// 2. Save Everything (Updates & Creates)
+		if err := tx.Session(&gorm.Session{FullSaveAssociations: true}).Save(course).Error; err != nil {
+			return err
+		}
+
+		// 3. Delete Orphans
+		var keepModuleIDs []uint64
+		for _, m := range course.Modules {
+			if m.ID != 0 {
+				keepModuleIDs = append(keepModuleIDs, m.ID)
+			}
+		}
+
+		for _, oldID := range oldModuleIDs {
+			found := false
+			for _, keepID := range keepModuleIDs {
+				if oldID == keepID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				// Delete Module (and sure to delete materials first if no cascade)
+				tx.Where("module_id = ?", oldID).Delete(&model.Material{})
+				tx.Delete(&model.Module{}, oldID)
+			} else {
+				// Check for orphaned materials in this kept module
+				var currentModule *model.Module
+				for i := range course.Modules {
+					if course.Modules[i].ID == oldID {
+						currentModule = &course.Modules[i]
+						break
+					}
+				}
+
+				if currentModule != nil {
+					var keepMatIDs []uint64
+					for _, mat := range currentModule.Materials {
+						if mat.ID != 0 {
+							keepMatIDs = append(keepMatIDs, mat.ID)
+						}
+					}
+
+					oldMatIDs := oldMaterialsMap[oldID]
+					for _, oldMatID := range oldMatIDs {
+						foundMat := false
+						for _, keepMatID := range keepMatIDs {
+							if oldMatID == keepMatID {
+								foundMat = true
+								break
+							}
+						}
+						if !foundMat {
+							tx.Delete(&model.Material{}, oldMatID)
+						}
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 func DeleteCourse(id uint64) error {
@@ -70,4 +148,37 @@ func GetCoursesByStudentID(studentID uint64) ([]model.Course, error) {
 		Where("course_students.user_id = ?", studentID).
 		Find(&courses).Error
 	return courses, err
+}
+
+func GetModuleByID(id uint64) (*model.Module, error) {
+	var module model.Module
+	err := database.DB.First(&module, id).Error
+	return &module, err
+}
+
+func DeleteModule(id uint64) error {
+	// Delete materials associated with the module first (manual cascade if DB doesn't handle it, relying on GORM Select or standard Delete with foreign keys)
+	// Using Select("Materials").Delete explicitly is safer if gorm:constraint is not fully set for ON DELETE CASCADE in DB
+	// However, usually we can just delete the module and if we want app-level cascade:
+	var module model.Module
+	module.ID = id
+	return database.DB.Select("Materials").Delete(&module).Error
+}
+
+func GetMaterialByID(id uint64) (*model.Material, error) {
+	var material model.Material
+	err := database.DB.First(&material, id).Error
+	return &material, err
+}
+
+func DeleteMaterial(id uint64) error {
+	return database.DB.Delete(&model.Material{}, id).Error
+}
+
+func CreateMaterial(material *model.Material) error {
+	return database.DB.Create(material).Error
+}
+
+func UpdateMaterial(material *model.Material) error {
+	return database.DB.Save(material).Error
 }

@@ -7,13 +7,17 @@ import (
 type Assignment struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	CourseID    uint64    `json:"course_id"`
+	ModuleID    *uint64   `json:"module_id"` // Bisa link ke modul tertentu
 	Title       string    `gorm:"type:varchar(255)" json:"title"`
 	Instruction string    `gorm:"type:text" json:"instruction"`
 	Deadline    time.Time `json:"deadline"`
 
+	MaxPoints int `json:"max_points"`
+
 	AllowText  bool `json:"allow_text"`
 	AllowFile  bool `json:"allow_file"`
 	AllowVoice bool `json:"allow_voice"`
+	AllowLate  bool `json:"allow_late"`
 
 	Submissions []Submission `gorm:"foreignKey:AssignmentID" json:"submissions,omitempty"`
 }

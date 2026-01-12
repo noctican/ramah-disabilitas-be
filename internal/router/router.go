@@ -44,6 +44,7 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/user/accessibility", handler.UpdateAccessibility)
 			protected.POST("/courses/join", handler.JoinCourse)
 			protected.GET("/courses/joined", handler.GetMyJoinedCourses)
+			protected.GET("/courses/assignments", handler.GetMyAssignments)
 
 			lecturer := protected.Group("/lecturer")
 			lecturer.Use(middleware.LecturerMiddleware())
@@ -53,6 +54,12 @@ func SetupRouter() *gin.Engine {
 				lecturer.GET("/courses/:id", handler.GetCourseDetail)
 				lecturer.PUT("/courses/:id", handler.UpdateCourse)
 				lecturer.DELETE("/courses/:id", handler.DeleteCourse)
+				lecturer.DELETE("/modules/:id", handler.DeleteModule)
+				lecturer.POST("/modules/:id/materials", handler.CreateMaterial)
+				lecturer.DELETE("/materials/:id", handler.DeleteMaterial)
+				lecturer.PUT("/materials/:id", handler.UpdateMaterial)
+				lecturer.POST("/courses/:id/assignments", handler.CreateAssignment)
+				lecturer.GET("/courses/:id/assignments", handler.GetAssignments)
 			}
 		}
 	}

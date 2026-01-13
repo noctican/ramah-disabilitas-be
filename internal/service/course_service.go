@@ -396,3 +396,30 @@ func GetMaterialDetailWithStatus(materialID, userID uint64) (*model.Material, er
 
 	return material, nil
 }
+
+func CreateStudentAndEnroll(courseID uint64, input CreateStudentInput, teacherID uint64) (*model.User, error) {
+	// 1. Verify Teacher owns the course
+	course, err := repository.GetCourseByID(courseID)
+	if err != nil {
+		return nil, errors.New("kelas tidak ditemukan")
+	}
+	if course.TeacherID != teacherID {
+		return nil, errors.New("unauthorized: anda tidak memiliki akses ke kelas ini")
+	}
+
+	// 2. Create Student Account
+	user, err := CreateStudent(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Enroll Student to Course
+	if err := repository.AddStudentToCourse(courseID, user.ID); err != nil {
+		// Ideally we should rollback user creation here if transaction support was passed down
+		// But for now let's just error out. The user exists but is not enrolled.
+		// Retrying enroll might be manual.
+		return nil, errors.New("user created but failed to enroll: " + err.Error())
+	}
+
+	return user, nil
+}

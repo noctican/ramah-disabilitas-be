@@ -57,6 +57,7 @@ func SetupRouter() *gin.Engine {
 				lecturer.POST("/students", handler.CreateStudentByLecturer)
 				lecturer.POST("/students/import", handler.ImportStudents)
 				lecturer.POST("/courses", handler.CreateCourse)
+				lecturer.POST("/courses/:id/students", handler.CreateStudentAndEnroll)
 				lecturer.GET("/courses", handler.GetMyCourses)
 				lecturer.GET("/courses/:id", handler.GetCourseDetail)
 				lecturer.PUT("/courses/:id", handler.UpdateCourse)

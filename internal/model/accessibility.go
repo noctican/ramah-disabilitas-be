@@ -4,19 +4,19 @@ type AccessibilityProfile struct {
 	UserID uint64 `gorm:"primaryKey" json:"user_id"`
 	User   User   `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 
-	VisionImpaired    bool `json:"vision_impaired"`
-	HearingImpaired   bool `json:"hearing_impaired"`
-	PhysicalImpaired  bool `json:"physical_impaired"`
-	CognitiveImpaired bool `json:"cognitive_impaired"`
-	SpeechImpaired    bool `json:"speech_impaired"`
+	VisionImpaired    bool `json:"tuna_netra"`
+	HearingImpaired   bool `json:"tuna_rungu"`
+	PhysicalImpaired  bool `json:"tuna_daksa"`
+	CognitiveImpaired bool `json:"kesulitan_kognitif"` // atau tuna_grahita
+	SpeechImpaired    bool `json:"tuna_wicara"`
 
-	ScreenReaderCompatible bool `json:"screen_reader_compatible"`
-	AudioDescription       bool `json:"audio_description"`
-	SubtitlesRequired      bool `json:"subtitles_required"`
-	VisualNotifications    bool `json:"visual_notifications"`
-	KeyboardNavigation     bool `json:"keyboard_navigation"`
-	VoiceCommand           bool `json:"voice_command"`
-	AISummary              bool `json:"ai_summary"`
-	FocusMode              bool `json:"focus_mode"`
-	TextBasedSubmission    bool `json:"text_based_submission"`
+	ScreenReaderCompatible bool `json:"kompatibel_screen_reader"`
+	AudioDescription       bool `json:"deskripsi_audio"`
+	SubtitlesRequired      bool `json:"butuh_subtitle"`
+	VisualNotifications    bool `json:"notifikasi_visual"`
+	KeyboardNavigation     bool `json:"navigasi_keyboard"`
+	VoiceCommand           bool `json:"perintah_suara"`
+	AISummary              bool `json:"ringkasan_ai"`
+	FocusMode              bool `json:"mode_fokus"`
+	TextBasedSubmission    bool `json:"pengumpulan_teks"`
 }

@@ -58,24 +58,25 @@ func UpdateAccessibilityProfile(userID uint64, input AccessibilityInput) (*model
 	}
 
 	for _, category := range input.Categories {
+		category = strings.ToLower(strings.TrimSpace(category))
 		switch category {
-		case "A", "vision", "penglihatan":
+		case "a", "vision", "penglihatan", "tuna netra", "tuna_netra":
 			profile.VisionImpaired = true
 			profile.ScreenReaderCompatible = true
 			profile.AudioDescription = true
-		case "B", "hearing", "pendengaran":
+		case "b", "hearing", "pendengaran", "tuna rungu", "tuna_rungu":
 			profile.HearingImpaired = true
 			profile.SubtitlesRequired = true
 			profile.VisualNotifications = true
-		case "C", "physical", "motorik", "daksa":
+		case "c", "physical", "motorik", "daksa", "tuna daksa", "tuna_daksa":
 			profile.PhysicalImpaired = true
 			profile.KeyboardNavigation = true
 			profile.VoiceCommand = true
-		case "D", "cognitive", "fokus", "adhd", "disleksia":
+		case "d", "cognitive", "fokus", "adhd", "disleksia", "kesulitan kognitif", "kesulitan_kognitif", "tuna grahita":
 			profile.CognitiveImpaired = true
 			profile.AISummary = true
 			profile.FocusMode = true
-		case "E", "speech", "wicara", "bisu":
+		case "e", "speech", "wicara", "bisu", "tuna wicara", "tuna_wicara":
 			profile.SpeechImpaired = true
 			profile.TextBasedSubmission = true
 		}

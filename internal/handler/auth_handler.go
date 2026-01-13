@@ -53,15 +53,19 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	hasFilledAccessibility := user.Accessibility != nil
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login berhasil",
 		"token":   token,
 		"user": gin.H{
-			"id":     user.ID,
-			"name":   user.Name,
-			"email":  user.Email,
-			"role":   user.Role,
-			"avatar": user.Avatar,
+			"id":                       user.ID,
+			"name":                     user.Name,
+			"email":                    user.Email,
+			"role":                     user.Role,
+			"avatar":                   user.Avatar,
+			"accessibility":            user.Accessibility,
+			"has_filled_accessibility": hasFilledAccessibility,
 		},
 	})
 }

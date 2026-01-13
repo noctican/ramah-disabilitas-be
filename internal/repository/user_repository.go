@@ -11,7 +11,7 @@ func CreateUser(user *model.User) error {
 
 func FindUserByEmail(email string) (*model.User, error) {
 	var user model.User
-	err := database.DB.Where("email = ?", email).First(&user).Error
+	err := database.DB.Preload("Accessibility").Where("email = ?", email).First(&user).Error
 	return &user, err
 }
 

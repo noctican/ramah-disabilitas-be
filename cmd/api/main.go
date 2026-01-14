@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"ramah-disabilitas-be/internal/router"
+	"ramah-disabilitas-be/pkg/ai"
 	"ramah-disabilitas-be/pkg/database"
 
 	"github.com/joho/godotenv"
@@ -17,6 +18,7 @@ func main() {
 	database.Connect()
 	database.Migrate()
 	database.SeedAdmin()
+	ai.InitClient()
 
 	r := router.SetupRouter()
 

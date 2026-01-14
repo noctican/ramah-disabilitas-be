@@ -1,10 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"ramah-disabilitas-be/internal/model"
 	"ramah-disabilitas-be/internal/repository"
+	"ramah-disabilitas-be/pkg/ai"
+	"ramah-disabilitas-be/pkg/utils"
 	"time"
 )
 
@@ -422,4 +425,88 @@ func CreateStudentAndEnroll(courseID uint64, input CreateStudentInput, teacherID
 	}
 
 	return user, nil
+}
+
+func GenerateMaterialSummary(materialID uint64) (*model.SmartFeature, error) {
+	material, err := repository.GetMaterialByID(materialID)
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan")
+	}
+
+	// Check if summary already exists (simple caching)
+	// You might want to allow re-generation, but strictly sticking to 'generate if needed' for cost efficiency first.
+	// If the user wants to regenerate, we can clear this field or add a force flag.
+	if material.SmartFeature != nil && material.SmartFeature.Summary != "" {
+		return material.SmartFeature, nil
+	}
+
+	var textContent string
+	if material.Type == model.TypePDF {
+		// Extract from source URL
+		// Ensure SourceURL is not empty
+		if material.SourceURL == "" {
+			return nil, errors.New("file PDF tidak ditemukan (URL kosong)")
+		}
+
+		extracted, err := utils.ExtractTextFromPDF(material.SourceURL)
+		if err != nil {
+			return nil, errors.New("gagal membaca PDF: " + err.Error())
+		}
+		if len(extracted) > 200000 {
+			// Truncate if too huge? Gemini Flash has 1M token context, so 200k chars is fine (~50k tokens).
+			// But let's be safe against abuse.
+			extracted = extracted[:200000]
+		}
+		textContent = extracted
+	} else if material.Type == model.TypeText {
+		textContent = material.RawContent
+	} else {
+		return nil, errors.New("tipe materi ini belum didukung untuk ringkasan otomatis")
+	}
+
+	if textContent == "" {
+		return nil, errors.New("konten materi kosong, tidak bisa diringkas")
+	}
+
+	// Call AI
+	// Using a context with timeout is good practice
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Prompt refined for rich formatting
+	prompt := "Buatkan ringkasan yang komprehensif dari materi berikut. Gunakan format Markdown untuk struktur yang rapi: gunakan **bold** untuk istilah penting atau heading, list bullet points untuk rincian, dan _italic_ untuk penekanan. Pastikan ringkasan mudah dipahami oleh mahasiswa:\n\n" + textContent
+	summary, err := ai.GenerateContent(ctx, prompt)
+	if err != nil {
+		return nil, errors.New("gagal menghasilkan ringkasan AI: " + err.Error())
+	}
+
+	// Return ephemeral result (not saved yet)
+	return &model.SmartFeature{
+		MaterialID:  materialID,
+		Summary:     summary,
+		IsGenerated: true, // Marked as AI generated
+	}, nil
+}
+
+func SaveMaterialSummary(materialID uint64, summary string) (*model.SmartFeature, error) {
+	material, err := repository.GetMaterialByID(materialID)
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan")
+	}
+
+	smartFeature := material.SmartFeature
+	if smartFeature == nil {
+		smartFeature = &model.SmartFeature{
+			MaterialID: materialID,
+		}
+	}
+
+	smartFeature.Summary = summary
+	smartFeature.IsGenerated = true
+
+	if err := repository.SaveSmartFeature(smartFeature); err != nil {
+		return nil, errors.New("gagal menyimpan ringkasan")
+	}
+
+	return smartFeature, nil
 }

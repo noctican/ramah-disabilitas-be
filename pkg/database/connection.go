@@ -49,6 +49,8 @@ func Migrate() {
 	// 	&model.Subtest{},
 	// 	&model.Friendship{},
 	// 	&model.User{},
+	// 	&model.Course{},
+	// 	&model.MaterialCompletion{},
 	// )
 	err := DB.AutoMigrate(
 		&model.User{},

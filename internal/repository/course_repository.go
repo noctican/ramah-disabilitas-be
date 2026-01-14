@@ -286,3 +286,7 @@ func CreateMaterial(material *model.Material) error {
 func UpdateMaterial(material *model.Material) error {
 	return database.DB.Save(material).Error
 }
+
+func SaveSmartFeature(feature *model.SmartFeature) error {
+	return database.DB.Save(feature).Error
+}

@@ -749,7 +749,83 @@ func CreateStudentAndEnroll(c *gin.Context) {
 			"id":    user.ID,
 			"name":  user.Name,
 			"email": user.Email,
-			"role":  user.Role,
 		},
+	})
+}
+
+func GenerateMaterialSummary(c *gin.Context) {
+	// 1. Auth Check (Must be logged in)
+	_, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 2. Parse ID
+	materialIDStr := c.Param("id")
+	materialID, err := strconv.ParseUint(materialIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID materi tidak valid"})
+		return
+	}
+
+	// 3. Call Service
+	smartFeature, err := service.GenerateMaterialSummary(materialID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "tidak ditemukan") {
+			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "belum didukung") {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Preview ringkasan berhasil dibuat (belum disimpan)",
+		"data":    smartFeature, // smartFeature contains IsGenerated=true and Summary
+	})
+}
+
+func SaveMaterialSummary(c *gin.Context) {
+	// 1. Auth Check
+	_, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 2. Parse ID
+	materialIDStr := c.Param("id")
+	materialID, err := strconv.ParseUint(materialIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID materi tidak valid"})
+		return
+	}
+
+	// 3. Bind JSON
+	var input struct {
+		Summary string `json:"summary" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Validasi input gagal",
+			"errors":  utils.FormatValidationError(err),
+		})
+		return
+	}
+
+	// 4. Call Service
+	smartFeature, err := service.SaveMaterialSummary(materialID, input.Summary)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Ringkasan berhasil disimpan",
+		"data":    smartFeature,
 	})
 }

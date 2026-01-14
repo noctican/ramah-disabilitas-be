@@ -52,45 +52,51 @@ func Migrate() {
 	// 	&model.Course{},
 	// 	&model.MaterialCompletion{},
 	// )
-	err := DB.AutoMigrate(
-		&model.User{},
-		&model.Friendship{},
-		&model.Subtest{},
-		&model.AccessibilityProfile{},
-	)
-	if err != nil {
-		log.Fatal("Failed to migrate Step 1 (Users):", err)
-	}
+	if os.Getenv("APP_ENV") != "production" {
+		log.Println("Running AutoMigrate...")
 
-	err = DB.AutoMigrate(
-		&model.Course{},
-		&model.Module{},
-	)
-	if err != nil {
-		log.Fatal("Failed to migrate Step 2 (Courses):", err)
-	}
+		err := DB.AutoMigrate(
+			&model.User{},
+			&model.Friendship{},
+			&model.Subtest{},
+			&model.AccessibilityProfile{},
+		)
+		if err != nil {
+			log.Fatal("Failed to migrate Step 1 (Users):", err)
+		}
 
-	err = DB.AutoMigrate(
-		&model.Material{},
-		&model.Question{},
-		&model.Assignment{},
-	)
-	if err != nil {
-		log.Fatal("Failed to migrate Step 3 (Materials):", err)
-	}
+		err = DB.AutoMigrate(
+			&model.Course{},
+			&model.Module{},
+		)
+		if err != nil {
+			log.Fatal("Failed to migrate Step 2 (Courses):", err)
+		}
 
-	err = DB.AutoMigrate(
-		&model.SmartFeature{},
-		&model.Match{},
-		&model.MatchDetail{},
-		&model.PracticeSession{},
-		&model.QuestionReport{},
-		&model.Submission{},
-		&model.MaterialCompletion{},
-	)
-	if err != nil {
-		log.Fatal("Failed to migrate Step 4 (Features):", err)
-	}
+		err = DB.AutoMigrate(
+			&model.Material{},
+			&model.Question{},
+			&model.Assignment{},
+		)
+		if err != nil {
+			log.Fatal("Failed to migrate Step 3 (Materials):", err)
+		}
 
-	log.Println("Database migration completed successfully")
+		err = DB.AutoMigrate(
+			&model.SmartFeature{},
+			&model.Match{},
+			&model.MatchDetail{},
+			&model.PracticeSession{},
+			&model.QuestionReport{},
+			&model.Submission{},
+			&model.MaterialCompletion{},
+		)
+		if err != nil {
+			log.Fatal("Failed to migrate Step 4 (Features):", err)
+		}
+
+		log.Println("Database migration completed successfully")
+	} else {
+		log.Println("Production mode: Skipping AutoMigrate to save startup time.")
+	}
 }

@@ -1005,6 +1005,38 @@ func GetCourseStudents(c *gin.Context) {
 	})
 }
 
+func GetCourseMembers(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	courseIDStr := c.Param("id")
+	courseID, err := strconv.ParseUint(courseIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID kelas tidak valid"})
+		return
+	}
+
+	members, err := service.GetCourseMembers(courseID, userID.(uint64))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "unauthorized") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "tidak ditemukan") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Anggota kelas berhasil diambil",
+		"data":    members,
+	})
+}
+
 func GradeSubmission(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {

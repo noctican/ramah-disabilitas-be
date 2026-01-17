@@ -48,6 +48,11 @@ type Flashcard struct {
 	Back  string `json:"back"`
 }
 
+type CourseMembersResponse struct {
+	Lecturer model.User   `json:"lecturer"`
+	Students []model.User `json:"students"`
+}
+
 func CreateCourse(input CourseInput, teacherID uint64) (*model.Course, error) {
 	if input.ClassCode == "" {
 		input.ClassCode = generateClassCode()
@@ -793,4 +798,40 @@ func GetCourseStudents(courseID uint64, teacherID uint64) ([]model.User, error) 
 
 	// 2. Get Students
 	return repository.GetStudentsByCourseID(courseID)
+}
+
+func GetCourseMembers(courseID uint64, userID uint64) (*CourseMembersResponse, error) {
+	// 1. Get Course to find Teacher
+	course, err := repository.GetCourseByID(courseID)
+	if err != nil {
+		return nil, errors.New("kelas tidak ditemukan")
+	}
+
+	// 2. Access Control: User must be teacher or student in course
+	if course.TeacherID != userID {
+		isStudent, err := repository.IsStudentInCourse(courseID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if !isStudent {
+			return nil, errors.New("unauthorized: anda bukan anggota kelas ini")
+		}
+	}
+
+	// 3. Get Lecturer
+	lecturer, err := repository.FindUserByID(course.TeacherID)
+	if err != nil {
+		return nil, errors.New("data pengajar tidak ditemukan")
+	}
+
+	// 4. Get Students
+	students, err := repository.GetStudentsByCourseID(courseID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CourseMembersResponse{
+		Lecturer: *lecturer,
+		Students: students,
+	}, nil
 }

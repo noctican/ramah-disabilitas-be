@@ -5,7 +5,7 @@ import "github.com/gin-gonic/gin"
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		allowedOrigins := []string{"http://localhost:5173", "http://localhost:3000"}
+		allowedOrigins := []string{"http://localhost:5173", "http://localhost:3000", "https://inclusa.vercel.app"}
 
 		for _, o := range allowedOrigins {
 			if o == origin {

@@ -27,10 +27,11 @@ func CreateStudent(input CreateStudentInput) (*model.User, error) {
 	}
 
 	user := &model.User{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: hashedPassword,
-		Role:     model.RoleStudent,
+		Name:       input.Name,
+		Email:      input.Email,
+		Password:   hashedPassword,
+		Role:       model.RoleStudent,
+		IsVerified: true,
 	}
 
 	if err := repository.CreateUser(user); err != nil {

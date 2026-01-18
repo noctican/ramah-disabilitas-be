@@ -23,6 +23,12 @@ type LoginInput struct {
 }
 
 func Register(input RegisterInput) (*model.User, error) {
+	// Check if email already exists
+	_, err := repository.FindUserByEmail(input.Email)
+	if err == nil {
+		return nil, errors.New("email sudah ada")
+	}
+
 	hashedPassword, err := utils.HashPassword(input.Password)
 	if err != nil {
 		return nil, err
@@ -44,11 +50,12 @@ func Register(input RegisterInput) (*model.User, error) {
 	token := hex.EncodeToString(tokenBytes)
 
 	user := &model.User{
-		Name:              input.Name,
-		Email:             input.Email,
-		Password:          hashedPassword,
-		Role:              userRole,
-		IsVerified:        false,
+		Name:     input.Name,
+		Email:    input.Email,
+		Password: hashedPassword,
+		Role:     userRole,
+		// IsVerified:        false,
+		IsVerified:        true,
 		VerificationToken: token,
 	}
 
@@ -62,10 +69,10 @@ func Register(input RegisterInput) (*model.User, error) {
 	// The prompt implies "given in response... told to check email".
 	// If email fails sending, telling them to check it is wrong.
 	// So I'll do it sync.
-	if err := utils.SendVerificationEmail(user.Email, token); err != nil {
-		// Just log error?
-		// For now simple.
-	}
+	// if err := utils.SendVerificationEmail(user.Email, token); err != nil {
+	// 	// Just log error?
+	// 	// For now simple.
+	// }
 
 	return user, nil
 }
@@ -80,9 +87,9 @@ func Login(input LoginInput) (*model.User, string, error) {
 		return nil, "", errors.New("email atau password salah")
 	}
 
-	if !user.IsVerified {
-		return nil, "", errors.New("email belum diverifikasi. silahkan cek inbox anda")
-	}
+	// if !user.IsVerified {
+	// 	return nil, "", errors.New("email belum diverifikasi. silahkan cek inbox anda")
+	// }
 
 	token, err := utils.GenerateToken(user.ID, string(user.Role))
 	if err != nil {

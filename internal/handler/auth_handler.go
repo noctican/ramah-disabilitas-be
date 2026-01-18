@@ -20,7 +20,15 @@ func Register(c *gin.Context) {
 	}
 
 	user, err := service.Register(input)
+	// Handle specific validation errors
 	if err != nil {
+		if err.Error() == "email sudah ada" || err.Error() == "role tidak valid (pilih 'dosen' atau 'mahasiswa')" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

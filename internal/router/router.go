@@ -62,6 +62,11 @@ func SetupRouter() *gin.Engine {
 			lecturer.Use(middleware.LecturerMiddleware())
 			{
 				lecturer.GET("/dashboard", handler.GetLecturerDashboardStats)
+				lecturer.GET("/dashboard/summary", handler.GetDashboardSummary)
+				lecturer.GET("/classes/active", handler.GetActiveClasses)
+				lecturer.GET("/activities", handler.GetRecentActivities)
+				lecturer.GET("/assignments/pending-grades", handler.GetPendingAssignments)
+				lecturer.GET("/progress/summary", handler.GetProgressSummary)
 				lecturer.POST("/students", handler.CreateStudentByLecturer)
 				lecturer.POST("/students/import", handler.ImportStudents)
 				lecturer.POST("/courses", handler.CreateCourse)

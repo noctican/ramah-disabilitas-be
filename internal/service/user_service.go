@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/csv"
+	"errors"
 	"io"
 	"ramah-disabilitas-be/internal/model"
 	"ramah-disabilitas-be/internal/repository"
@@ -20,18 +21,19 @@ type CreateStudentInput struct {
 	Categories []string `json:"disabilities"`
 }
 
-func CreateStudent(input CreateStudentInput) (*model.User, error) {
+func CreateStudent(input CreateStudentInput, creatorID *uint64) (*model.User, error) {
 	hashedPassword, err := utils.HashPassword(input.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	user := &model.User{
-		Name:       input.Name,
-		Email:      input.Email,
-		Password:   hashedPassword,
-		Role:       model.RoleStudent,
-		IsVerified: true,
+		Name:        input.Name,
+		Email:       input.Email,
+		Password:    hashedPassword,
+		Role:        model.RoleStudent,
+		IsVerified:  true,
+		CreatedByID: creatorID,
 	}
 
 	if err := repository.CreateUser(user); err != nil {
@@ -136,7 +138,7 @@ func ImportStudentsFromCSV(reader io.Reader) ([]*model.User, error) {
 			Categories: disabilities,
 		}
 
-		user, err := CreateStudent(input)
+		user, err := CreateStudent(input, nil)
 		if err != nil {
 			// If error (e.g. duplicate email), skip or return error?
 			// Ideally collect errors, but for now let's just log or skip?
@@ -152,4 +154,51 @@ func ImportStudentsFromCSV(reader io.Reader) ([]*model.User, error) {
 	}
 
 	return createdUsers, nil
+}
+
+func UpdateStudentByLecturer(studentID uint64, input CreateStudentInput, teacherID uint64) (*model.User, error) {
+	// 1. Get User
+	user, err := repository.FindUserByID(studentID)
+	if err != nil {
+		return nil, errors.New("siswa tidak ditemukan")
+	}
+
+	// 2. Check Ownership (CreatedBy)
+	if user.CreatedByID == nil || *user.CreatedByID != teacherID {
+		return nil, errors.New("unauthorized: anda tidak berhak mengedit siswa ini")
+	}
+
+	// 3. Update basic info
+	user.Name = input.Name
+	user.Email = input.Email
+
+	// Update password if provided
+	if input.Password != "" {
+		hashed, err := utils.HashPassword(input.Password)
+		if err == nil {
+			user.Password = hashed
+		}
+	}
+
+	if err := repository.UpdateUser(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func DeleteStudentByLecturer(studentID uint64, teacherID uint64) error {
+	// 1. Get User
+	user, err := repository.FindUserByID(studentID)
+	if err != nil {
+		return errors.New("siswa tidak ditemukan")
+	}
+
+	// 2. Check Ownership
+	if user.CreatedByID == nil || *user.CreatedByID != teacherID {
+		return errors.New("unauthorized: anda tidak berhak menghapus siswa ini")
+	}
+
+	// 3. Delete
+	return repository.DeleteUser(studentID)
 }

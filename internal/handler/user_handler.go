@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"ramah-disabilitas-be/internal/service"
 	"ramah-disabilitas-be/pkg/utils"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -70,7 +72,9 @@ func CreateStudentByLecturer(c *gin.Context) {
 		return
 	}
 
-	user, err := service.CreateStudent(input)
+	lecturerID, _ := c.Get("userID")
+	teacherID := lecturerID.(uint64)
+	user, err := service.CreateStudent(input, &teacherID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		// Simple duplicate check if needed, or rely on generic error
@@ -112,5 +116,74 @@ func ImportStudents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Import berhasil",
 		"count":   len(users),
+	})
+}
+
+func UpdateStudentByLecturer(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	studentIDStr := c.Param("id")
+	studentID, err := strconv.ParseUint(studentIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID siswa tidak valid"})
+		return
+	}
+
+	var input service.CreateStudentInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Validasi input gagal: " + err.Error()})
+		return
+	}
+
+	user, err := service.UpdateStudentByLecturer(studentID, input, userID.(uint64))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "unauthorized") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "tidak ditemukan") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data siswa berhasil diperbarui",
+		"data":    user,
+	})
+}
+
+func DeleteStudentByLecturer(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	studentIDStr := c.Param("id")
+	studentID, err := strconv.ParseUint(studentIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID siswa tidak valid"})
+		return
+	}
+
+	err = service.DeleteStudentByLecturer(studentID, userID.(uint64))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "unauthorized") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "tidak ditemukan") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data siswa berhasil dihapus",
 	})
 }

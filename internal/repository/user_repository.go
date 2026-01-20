@@ -30,3 +30,7 @@ func FindUserByVerificationToken(token string) (*model.User, error) {
 func UpdateUser(user *model.User) error {
 	return database.DB.Save(user).Error
 }
+
+func DeleteUser(id uint64) error {
+	return database.DB.Delete(&model.User{}, id).Error
+}

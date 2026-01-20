@@ -458,7 +458,7 @@ func CreateStudentAndEnroll(courseID uint64, input CreateStudentInput, teacherID
 	}
 
 	// 2. Create Student Account
-	user, err := CreateStudent(input)
+	user, err := CreateStudent(input, &teacherID)
 	if err != nil {
 		return nil, err
 	}
@@ -788,7 +788,7 @@ func ImportStudentsToCourseFromExcel(courseID uint64, teacherID uint64, filePath
 				Password:   password,
 				Categories: disabilities,
 			}
-			newUser, errCreate := CreateStudent(input)
+			newUser, errCreate := CreateStudent(input, nil)
 			if errCreate != nil {
 				failCount++
 				errorsList = append(errorsList, fmt.Sprintf("Row %d (%s): Gagal buat user: %v", i+1, email, errCreate))

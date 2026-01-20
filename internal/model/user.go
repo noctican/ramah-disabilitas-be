@@ -22,6 +22,7 @@ type User struct {
 	Points            int                   `gorm:"default:0" json:"points"`
 	CurrentStreak     int                   `gorm:"default:0" json:"current_streak"`
 	LastActivityDate  time.Time             `gorm:"type:date" json:"last_activity_date"`
+	CreatedByID       *uint64               `json:"created_by_id"` // Tracks who created this user (e.g. Lecturer)
 	CreatedAt         time.Time             `json:"created_at"`
 	UpdatedAt         time.Time             `json:"updated_at"`
 	Accessibility     *AccessibilityProfile `gorm:"foreignKey:UserID" json:"accessibility_profile"`

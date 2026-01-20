@@ -19,7 +19,7 @@ type Assignment struct {
 	AllowVoice bool `json:"allow_voice"`
 	AllowLate  bool `json:"allow_late"`
 
-	Submissions []Submission `gorm:"foreignKey:AssignmentID" json:"submissions,omitempty"`
+	Submissions []Submission `gorm:"foreignKey:AssignmentID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"submissions,omitempty"`
 
 	MySubmission *Submission `gorm:"-" json:"my_submission,omitempty"`
 }

@@ -51,7 +51,9 @@ func UpdateCourse(course *model.Course) error {
 		oldMaterialsMap := make(map[uint64][]uint64)
 		for _, mid := range oldModuleIDs {
 			var oldMatIDs []uint64
-			tx.Model(&model.Material{}).Where("module_id = ?", mid).Pluck("id", &oldMatIDs)
+			if err := tx.Model(&model.Material{}).Where("module_id = ?", mid).Pluck("id", &oldMatIDs).Error; err != nil {
+				return err
+			}
 			oldMaterialsMap[mid] = oldMatIDs
 		}
 
@@ -78,8 +80,24 @@ func UpdateCourse(course *model.Course) error {
 			}
 			if !found {
 				// Delete Module (and sure to delete materials first if no cascade)
-				tx.Where("module_id = ?", oldID).Delete(&model.Material{})
-				tx.Delete(&model.Module{}, oldID)
+				// 1. Get IDs of materials to be deleted
+				mIDs := oldMaterialsMap[oldID]
+				if len(mIDs) > 0 {
+					// Delete dependencies first
+					if err := tx.Where("material_id IN ?", mIDs).Delete(&model.MaterialCompletion{}).Error; err != nil {
+						return err
+					}
+					if err := tx.Where("material_id IN ?", mIDs).Delete(&model.SmartFeature{}).Error; err != nil {
+						return err
+					}
+				}
+
+				if err := tx.Where("module_id = ?", oldID).Delete(&model.Material{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Delete(&model.Module{}, oldID).Error; err != nil {
+					return err
+				}
 			} else {
 				// Check for orphaned materials in this kept module
 				var currentModule *model.Module
@@ -108,7 +126,17 @@ func UpdateCourse(course *model.Course) error {
 							}
 						}
 						if !foundMat {
-							tx.Delete(&model.Material{}, oldMatID)
+							// Delete dependencies first
+							if err := tx.Where("material_id = ?", oldMatID).Delete(&model.MaterialCompletion{}).Error; err != nil {
+								return err
+							}
+							if err := tx.Where("material_id = ?", oldMatID).Delete(&model.SmartFeature{}).Error; err != nil {
+								return err
+							}
+
+							if err := tx.Delete(&model.Material{}, oldMatID).Error; err != nil {
+								return err
+							}
 						}
 					}
 				}
@@ -261,12 +289,28 @@ func GetModuleByID(id uint64) (*model.Module, error) {
 }
 
 func DeleteModule(id uint64) error {
-	// Delete materials associated with the module first (manual cascade if DB doesn't handle it, relying on GORM Select or standard Delete with foreign keys)
-	// Using Select("Materials").Delete explicitly is safer if gorm:constraint is not fully set for ON DELETE CASCADE in DB
-	// However, usually we can just delete the module and if we want app-level cascade:
-	var module model.Module
-	module.ID = id
-	return database.DB.Select("Materials").Delete(&module).Error
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		// Find materials
+		var materialIDs []uint64
+		if err := tx.Model(&model.Material{}).Where("module_id = ?", id).Pluck("id", &materialIDs).Error; err != nil {
+			return err
+		}
+
+		if len(materialIDs) > 0 {
+			if err := tx.Where("material_id IN ?", materialIDs).Delete(&model.MaterialCompletion{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("material_id IN ?", materialIDs).Delete(&model.SmartFeature{}).Error; err != nil {
+				return err
+			}
+			// Delete materials manually (explicitly)
+			if err := tx.Where("module_id = ?", id).Delete(&model.Material{}).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Delete(&model.Module{}, id).Error
+	})
 }
 
 func GetMaterialByID(id uint64) (*model.Material, error) {
@@ -276,7 +320,15 @@ func GetMaterialByID(id uint64) (*model.Material, error) {
 }
 
 func DeleteMaterial(id uint64) error {
-	return database.DB.Delete(&model.Material{}, id).Error
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("material_id = ?", id).Delete(&model.MaterialCompletion{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("material_id = ?", id).Delete(&model.SmartFeature{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.Material{}, id).Error
+	})
 }
 
 func CreateMaterial(material *model.Material) error {

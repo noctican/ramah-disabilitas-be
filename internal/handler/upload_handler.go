@@ -58,11 +58,12 @@ func UploadFile(c *gin.Context) {
 			return
 		}
 
+		host := c.Request.Host
+		// Force HTTPS if running on Koyeb (detected via host) or if TLS is detected
 		scheme := "http"
-		if c.Request.TLS != nil {
+		if c.Request.TLS != nil || c.Request.Header.Get("X-Forwarded-Proto") == "https" || utils.IsKoyebHost(host) {
 			scheme = "https"
 		}
-		host := c.Request.Host
 		publicURL := fmt.Sprintf("%s://%s/storage/public/%s", scheme, host, filename)
 
 		c.JSON(http.StatusOK, gin.H{
